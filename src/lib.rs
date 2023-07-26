@@ -71,51 +71,61 @@ pub struct View {
     pub items: HashMap<scru128::Scru128Id, Item>,
 }
 
-pub fn merge(view: &mut View, packet: Packet) {
-    match packet {
-        Packet::Add(add) => {
-            let item = Item {
-                id: add.id,
-                touched: vec![add.id],
-                hash: add.hash,
-                parent: add.stack_id,
-                children: Vec::new(),
-            };
-            if let Some(parent_id) = add.stack_id {
-                if let Some(parent) = view.items.get_mut(&parent_id) {
-                    parent.children.push(add.id);
-                }
-            }
-            view.items.insert(add.id, item);
-        }
-        Packet::Update(update) => {
-            if let Some(item) = view.items.get_mut(&update.id) {
-                item.touched.push(update.id);
-                item.hash = update.hash.unwrap();
-            }
-        }
-        Packet::Fork(fork) => {
-            if let Some(item) = view.items.get(&fork.source_id) {
-                let mut new_item = item.clone();
-                new_item.id = fork.id;
-                new_item.touched.push(fork.id);
-                if let Some(parent_id) = item.parent {
-                    if let Some(parent) = view.items.get_mut(&parent_id) {
-                        parent.children.push(fork.id);
+impl View {
+    pub fn merge(&mut self, packet: Packet) {
+        match packet {
+            Packet::Add(add) => {
+                let item = Item {
+                    id: add.id,
+                    touched: vec![add.id],
+                    hash: add.hash,
+                    parent: add.stack_id,
+                    children: Vec::new(),
+                };
+                if let Some(parent_id) = add.stack_id {
+                    if let Some(parent) = self.items.get_mut(&parent_id) {
+                        parent.children.push(add.id);
                     }
                 }
-                view.items.insert(fork.id, new_item);
+                self.items.insert(add.id, item);
             }
-        }
-        Packet::Delete(delete) => {
-            if let Some(item) = view.items.remove(&delete.source_id) {
-                if let Some(parent_id) = item.parent {
-                    if let Some(parent) = view.items.get_mut(&parent_id) {
-                        parent.children.retain(|&id| id != delete.source_id);
+            Packet::Update(update) => {
+                if let Some(item) = self.items.get_mut(&update.id) {
+                    item.touched.push(update.id);
+                    item.hash = update.hash.unwrap();
+                }
+            }
+            Packet::Fork(fork) => {
+                if let Some(item) = self.items.get(&fork.source_id) {
+                    let mut new_item = item.clone();
+                    new_item.id = fork.id;
+                    new_item.touched.push(fork.id);
+                    if let Some(parent_id) = item.parent {
+                        if let Some(parent) = self.items.get_mut(&parent_id) {
+                            parent.children.push(fork.id);
+                        }
+                    }
+                    self.items.insert(fork.id, new_item);
+                }
+            }
+            Packet::Delete(delete) => {
+                if let Some(item) = self.items.remove(&delete.source_id) {
+                    if let Some(parent_id) = item.parent {
+                        if let Some(parent) = self.items.get_mut(&parent_id) {
+                            parent.children.retain(|&id| id != delete.source_id);
+                        }
                     }
                 }
             }
         }
+    }
+
+    pub fn root(&self) -> Vec<Item> {
+        self.items
+            .values()
+            .filter(|item| item.parent.is_none())
+            .cloned()
+            .collect()
     }
 }
 
@@ -144,7 +154,7 @@ mod tests {
             stack_id: None,
             source: Some(stack_name),
         });
-        merge(&mut view, stack_packet);
+        view.merge(stack_packet);
 
         // Current clipboard content is added to the Stack
         let clipboard_packet = Packet::Add(Add {
@@ -153,10 +163,15 @@ mod tests {
             stack_id: Some(stack_id),
             source: None,
         });
-        merge(&mut view, clipboard_packet);
+        view.merge(clipboard_packet);
 
         // Check that the Stack and the clipboard content are in the view
         assert!(view.items.contains_key(&stack_id));
         assert_eq!(view.items[&stack_id].children.len(), 1);
+
+        // Check that the root items contain the Stack
+        let root_items = view.root();
+        assert_eq!(root_items.len(), 1);
+        assert_eq!(root_items[0].id, stack_id);
     }
 }
