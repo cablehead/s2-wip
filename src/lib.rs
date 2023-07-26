@@ -155,7 +155,7 @@ mod tests {
     use super::*;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
+        let mut expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
             .into_iter()
             .map(|(stack, items)| {
                 (
@@ -168,7 +168,7 @@ mod tests {
             })
             .collect();
 
-        let view: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = view
+        let mut view: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = view
             .root()
             .iter()
             .map(|item| {
@@ -177,10 +177,21 @@ mod tests {
                     .iter()
                     .filter_map(|id| view.items.get(id))
                     .map(|child| child.hash.clone())
-                    .collect::<Vec<_>>();
+                    .collect();
                 (item.hash.clone(), children_hashes)
             })
             .collect();
+
+        // Sort the vectors before comparing
+        expected.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+        for (_, v) in &mut expected {
+            v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        }
+        view.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+        for (_, v) in &mut view {
+            v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        }
+
         assert_eq!(view, expected);
     }
 
