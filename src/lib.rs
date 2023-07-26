@@ -71,7 +71,7 @@ pub struct View {
     pub items: HashMap<scru128::Scru128Id, Item>,
 }
 
-pub fn merge(mut view: View, packet: Packet) -> View {
+pub fn merge(view: &mut View, packet: Packet) {
     match packet {
         Packet::Add(add) => {
             let item = Item {
@@ -117,7 +117,6 @@ pub fn merge(mut view: View, packet: Packet) -> View {
             }
         }
     }
-    view
 }
 
 #[cfg(test)]
@@ -144,7 +143,7 @@ mod tests {
             stack_id: None,
             source: Some(stack_name),
         });
-        view = merge(view, stack_packet);
+        merge(&mut view, stack_packet);
 
         // Current clipboard content is added to the Stack
         let clipboard_content = "Hello, world!";
@@ -154,7 +153,7 @@ mod tests {
             stack_id: Some(stack_id),
             source: Some(clipboard_content.to_string()),
         });
-        view = merge(view, clipboard_packet);
+        merge(&mut view, clipboard_packet);
 
         // Check that the Stack and the clipboard content are in the view
         assert!(view.items.contains_key(&stack_id));
