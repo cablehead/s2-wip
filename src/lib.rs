@@ -90,7 +90,7 @@ impl View {
                 self.items.insert(add.id, item);
             }
             Packet::Update(update) => {
-                if let Some(item) = self.items.get_mut(&update.id) {
+                if let Some(item) = self.items.get_mut(&update.source_id) {
                     item.touched.push(update.id);
                     if let Some(new_hash) = update.hash {
                         item.hash = new_hash;
@@ -144,13 +144,43 @@ impl View {
 mod tests {
     use super::*;
 
+    fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
+        let expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
+            .into_iter()
+            .map(|(stack, items)| {
+                (
+                    ssri::Integrity::from(stack),
+                    items
+                        .into_iter()
+                        .map(|item| ssri::Integrity::from(item))
+                        .collect(),
+                )
+            })
+            .collect();
+
+        let view: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = view
+            .root()
+            .iter()
+            .map(|item| {
+                let children_hashes = item
+                    .children
+                    .iter()
+                    .filter_map(|id| view.items.get(id))
+                    .map(|child| child.hash.clone())
+                    .collect::<Vec<_>>();
+                (item.hash.clone(), children_hashes)
+            })
+            .collect();
+        assert_eq!(view, expected);
+    }
+
     #[test]
     fn test_merge() {
         let mut view = View {
             items: HashMap::new(),
         };
 
-        // Scenario: User creates a Stack, and adds one item to it
+        // Scenario: User creates a Stack, and adds an item to it
         let stack_id = scru128::new();
         view.merge(Packet::Add(Add {
             id: stack_id,
@@ -159,7 +189,6 @@ mod tests {
             source: None,
         }));
 
-        // Current clipboard content is added to the Stack
         let item_id = scru128::new();
         view.merge(Packet::Add(Add {
             id: item_id,
@@ -168,14 +197,7 @@ mod tests {
             source: None,
         }));
 
-        // Check that the Stack and the clipboard content are in the view
-        assert!(view.items.contains_key(&stack_id));
-        assert_eq!(view.items[&stack_id].children.len(), 1);
-
-        // Check that the root items contain the Stack
-        let root_items = view.root();
-        assert_eq!(root_items.len(), 1);
-        assert_eq!(root_items[0].id, stack_id);
+        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1"])]);
 
         // User updates the item
         view.merge(Packet::Update(Update {
@@ -185,5 +207,7 @@ mod tests {
             stack_id: None,
             source: None,
         }));
+
+        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1 - updated"])]);
     }
 }
