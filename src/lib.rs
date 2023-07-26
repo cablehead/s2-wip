@@ -92,7 +92,12 @@ impl View {
             Packet::Update(update) => {
                 if let Some(item) = self.items.get_mut(&update.id) {
                     item.touched.push(update.id);
-                    item.hash = update.hash.unwrap();
+                    if let Some(new_hash) = update.hash {
+                        item.hash = new_hash;
+                    }
+                    if let Some(new_stack_id) = update.stack_id {
+                        item.parent = Some(new_stack_id);
+                    }
                 }
             }
             Packet::Fork(fork) => {
@@ -100,6 +105,12 @@ impl View {
                     let mut new_item = item.clone();
                     new_item.id = fork.id;
                     new_item.touched.push(fork.id);
+                    if let Some(new_hash) = fork.hash {
+                        new_item.hash = new_hash;
+                    }
+                    if let Some(new_stack_id) = fork.stack_id {
+                        new_item.parent = Some(new_stack_id);
+                    }
                     if let Some(parent_id) = item.parent {
                         if let Some(parent) = self.items.get_mut(&parent_id) {
                             parent.children.push(fork.id);
