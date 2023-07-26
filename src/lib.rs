@@ -185,12 +185,11 @@ mod tests {
     }
 
     #[test]
-    fn test_merge() {
+    fn test_update_item() {
         let mut view = View {
             items: HashMap::new(),
         };
 
-        // Scenario: User creates a Stack, and adds an item to it
         let stack_id = scru128::new();
         view.merge(Packet::Add(Add {
             id: stack_id,
@@ -205,7 +204,6 @@ mod tests {
             stack_id: Some(stack_id),
             source: None,
         }));
-        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1"])]);
 
         // User updates the item
         view.merge(Packet::Update(Update {
@@ -216,6 +214,28 @@ mod tests {
             source: None,
         }));
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1 - updated"])]);
+    }
+
+    #[test]
+    fn test_fork_item() {
+        let mut view = View {
+            items: HashMap::new(),
+        };
+
+        let stack_id = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: stack_id,
+            hash: ssri::Integrity::from("Stack 1"),
+            stack_id: None,
+            source: None,
+        }));
+        let item_id = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: item_id,
+            hash: ssri::Integrity::from("Item 1"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
 
         // User forks the original item
         view.merge(Packet::Fork(Fork {
@@ -225,10 +245,29 @@ mod tests {
             stack_id: Some(stack_id),
             source: None,
         }));
-        assert_view_as_expected(
-            &view,
-            vec![("Stack 1", vec!["Item 1 - updated", "Item 1 - forked"])],
-        );
+        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1", "Item 1 - forked"])]);
+    }
+
+    #[test]
+    fn test_move_item_to_new_stack() {
+        let mut view = View {
+            items: HashMap::new(),
+        };
+
+        let stack_id = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: stack_id,
+            hash: ssri::Integrity::from("Stack 1"),
+            stack_id: None,
+            source: None,
+        }));
+        let item_id = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: item_id,
+            hash: ssri::Integrity::from("Item 1"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
 
         // User creates a new Stack "Stack 2"
         let stack_id_2 = scru128::new();
@@ -250,10 +289,7 @@ mod tests {
 
         assert_view_as_expected(
             &view,
-            vec![
-                ("Stack 1", vec!["Item 1 - forked"]),
-                ("Stack 2", vec!["Item 1 - updated"]),
-            ],
+            vec![("Stack 1", vec![]), ("Stack 2", vec!["Item 1"])],
         );
     }
 }
