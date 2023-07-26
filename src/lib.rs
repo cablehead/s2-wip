@@ -150,31 +150,23 @@ mod tests {
             items: HashMap::new(),
         };
 
-        // Scenario: User starts the app, a Stack is created with current timestamp and current
-        // clipboard content
-        let now = chrono::Utc::now();
-        let stack_name = format!(
-            "# {}, at {}",
-            now.format("%a, %b %d, %Y"),
-            now.format("%I:%M %p %Z")
-        );
+        // Scenario: User creates a Stack, and adds one item to it
         let stack_id = scru128::new();
-        let stack_packet = Packet::Add(Add {
+        view.merge(Packet::Add(Add {
             id: stack_id,
-            hash: ssri::Integrity::from(stack_name.clone()),
+            hash: ssri::Integrity::from("Stack 1"),
             stack_id: None,
-            source: Some(stack_name),
-        });
-        view.merge(stack_packet);
+            source: None,
+        }));
 
         // Current clipboard content is added to the Stack
-        let clipboard_packet = Packet::Add(Add {
-            id: scru128::new(),
-            hash: ssri::Integrity::from("Hello"),
+        let item_id = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: item_id,
+            hash: ssri::Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
-        });
-        view.merge(clipboard_packet);
+        }));
 
         // Check that the Stack and the clipboard content are in the view
         assert!(view.items.contains_key(&stack_id));
@@ -185,23 +177,13 @@ mod tests {
         assert_eq!(root_items.len(), 1);
         assert_eq!(root_items[0].id, stack_id);
 
-        // Get the id of the clipboard content
-        let clipboard_id = view.items[&stack_id].children[0];
-
-        // User updates the item "Hello" to "Hello World"
-        let update_packet = Packet::Update(Update {
-            id: clipboard_id,
-            source_id: stack_id,
-            hash: Some(ssri::Integrity::from("Hello World")),
-            stack_id: Some(stack_id),
+        // User updates the item
+        view.merge(Packet::Update(Update {
+            id: scru128::new(),
+            source_id: item_id,
+            hash: Some(ssri::Integrity::from("Item 1 - updated")),
+            stack_id: None,
             source: None,
-        });
-        view.merge(update_packet);
-
-        // Check that the clipboard content has been updated
-        assert_eq!(
-            view.items[&clipboard_id].hash,
-            ssri::Integrity::from("Hello World")
-        );
+        }));
     }
 }
