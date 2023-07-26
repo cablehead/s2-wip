@@ -90,14 +90,24 @@ impl View {
                 self.items.insert(add.id, item);
             }
             Packet::Update(update) => {
-                if let Some(item) = self.items.get_mut(&update.source_id) {
+                if let Some(item) = self.items.get(&update.source_id).cloned() {
+                    let mut item = item;
                     item.touched.push(update.id);
                     if let Some(new_hash) = update.hash {
                         item.hash = new_hash;
                     }
                     if let Some(new_stack_id) = update.stack_id {
+                        if let Some(old_parent_id) = item.parent {
+                            if let Some(old_parent) = self.items.get_mut(&old_parent_id) {
+                                old_parent.children.retain(|&id| id != update.source_id);
+                            }
+                        }
                         item.parent = Some(new_stack_id);
+                        if let Some(new_parent) = self.items.get_mut(&new_stack_id) {
+                            new_parent.children.push(update.source_id);
+                        }
                     }
+                    self.items.insert(update.source_id, item);
                 }
             }
             Packet::Fork(fork) => {
@@ -218,6 +228,32 @@ mod tests {
         assert_view_as_expected(
             &view,
             vec![("Stack 1", vec!["Item 1 - updated", "Item 1 - forked"])],
+        );
+
+        // User creates a new Stack "Stack 2"
+        let stack_id_2 = scru128::new();
+        view.merge(Packet::Add(Add {
+            id: stack_id_2,
+            hash: ssri::Integrity::from("Stack 2"),
+            stack_id: None,
+            source: None,
+        }));
+
+        // User moves the original item to "Stack 2"
+        view.merge(Packet::Update(Update {
+            id: scru128::new(),
+            source_id: item_id,
+            hash: None,
+            stack_id: Some(stack_id_2),
+            source: None,
+        }));
+
+        assert_view_as_expected(
+            &view,
+            vec![
+                ("Stack 1", vec!["Item 1 - forked"]),
+                ("Stack 2", vec!["Item 1 - updated"]),
+            ],
         );
     }
 }
