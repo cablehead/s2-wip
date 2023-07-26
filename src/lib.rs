@@ -303,4 +303,41 @@ mod tests {
             vec![("Stack 1", vec![]), ("Stack 2", vec!["Item 1"])],
         );
     }
+
+    #[test]
+    fn test_delete_item() {
+        let mut view = View {
+            items: HashMap::new(),
+        };
+
+        let stack_id = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: stack_id,
+            hash: ssri::Integrity::from("Stack 1"),
+            stack_id: None,
+            source: None,
+        }));
+        let item_id_1 = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: item_id_1,
+            hash: ssri::Integrity::from("Item 1"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
+        let item_id_2 = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: item_id_2,
+            hash: ssri::Integrity::from("Item 2"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
+
+        // User deletes the first item
+        view.merge(Packet::Delete(DeletePacket {
+            id: scru128::new(),
+            source_id: item_id_1,
+        }));
+
+        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 2"])]);
+    }
 }
