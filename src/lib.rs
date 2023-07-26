@@ -20,14 +20,14 @@ pub struct Content {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum Packet {
-    Add(Add),
-    Update(Update),
-    Fork(Fork),
-    Delete(Delete),
+    Add(AddPacket),
+    Update(UpdatePacket),
+    Fork(ForkPacket),
+    Delete(DeletePacket),
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct Add {
+pub struct AddPacket {
     pub id: scru128::Scru128Id,
     pub hash: ssri::Integrity,
     pub stack_id: Option<scru128::Scru128Id>,
@@ -35,7 +35,7 @@ pub struct Add {
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct Update {
+pub struct UpdatePacket {
     pub id: scru128::Scru128Id,
     pub source_id: scru128::Scru128Id,
     pub hash: Option<ssri::Integrity>,
@@ -44,7 +44,7 @@ pub struct Update {
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct Fork {
+pub struct ForkPacket {
     pub id: scru128::Scru128Id,
     pub source_id: scru128::Scru128Id,
     pub hash: Option<ssri::Integrity>,
@@ -53,7 +53,7 @@ pub struct Fork {
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct Delete {
+pub struct DeletePacket {
     pub id: scru128::Scru128Id,
     pub source_id: scru128::Scru128Id,
 }
@@ -191,14 +191,14 @@ mod tests {
         };
 
         let stack_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: stack_id,
             hash: ssri::Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: item_id,
             hash: ssri::Integrity::from("Item 1"),
             stack_id: Some(stack_id),
@@ -206,7 +206,7 @@ mod tests {
         }));
 
         // User updates the item
-        view.merge(Packet::Update(Update {
+        view.merge(Packet::Update(UpdatePacket {
             id: scru128::new(),
             source_id: item_id,
             hash: Some(ssri::Integrity::from("Item 1 - updated")),
@@ -223,14 +223,14 @@ mod tests {
         };
 
         let stack_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: stack_id,
             hash: ssri::Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: item_id,
             hash: ssri::Integrity::from("Item 1"),
             stack_id: Some(stack_id),
@@ -238,7 +238,7 @@ mod tests {
         }));
 
         // User forks the original item
-        view.merge(Packet::Fork(Fork {
+        view.merge(Packet::Fork(ForkPacket {
             id: scru128::new(),
             source_id: item_id,
             hash: Some(ssri::Integrity::from("Item 1 - forked")),
@@ -255,14 +255,14 @@ mod tests {
         };
 
         let stack_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: stack_id,
             hash: ssri::Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: item_id,
             hash: ssri::Integrity::from("Item 1"),
             stack_id: Some(stack_id),
@@ -271,7 +271,7 @@ mod tests {
 
         // User creates a new Stack "Stack 2"
         let stack_id_2 = scru128::new();
-        view.merge(Packet::Add(Add {
+        view.merge(Packet::Add(AddPacket {
             id: stack_id_2,
             hash: ssri::Integrity::from("Stack 2"),
             stack_id: None,
@@ -279,7 +279,7 @@ mod tests {
         }));
 
         // User moves the original item to "Stack 2"
-        view.merge(Packet::Update(Update {
+        view.merge(Packet::Update(UpdatePacket {
             id: scru128::new(),
             source_id: item_id,
             hash: None,
