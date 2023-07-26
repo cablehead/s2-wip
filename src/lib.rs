@@ -173,5 +173,24 @@ mod tests {
         let root_items = view.root();
         assert_eq!(root_items.len(), 1);
         assert_eq!(root_items[0].id, stack_id);
+
+        // Get the id of the clipboard content
+        let clipboard_id = view.items[&stack_id].children[0];
+
+        // User updates the item "Hello" to "Hello World"
+        let update_packet = Packet::Update(Update {
+            id: clipboard_id,
+            source_id: stack_id,
+            hash: Some(ssri::Integrity::from("Hello World")),
+            stack_id: Some(stack_id),
+            source: None,
+        });
+        view.merge(update_packet);
+
+        // Check that the clipboard content has been updated
+        assert_eq!(
+            view.items[&clipboard_id].hash,
+            ssri::Integrity::from("Hello World")
+        );
     }
 }
