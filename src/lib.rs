@@ -188,7 +188,6 @@ mod tests {
             stack_id: None,
             source: None,
         }));
-
         let item_id = scru128::new();
         view.merge(Packet::Add(Add {
             id: item_id,
@@ -196,7 +195,6 @@ mod tests {
             stack_id: Some(stack_id),
             source: None,
         }));
-
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1"])]);
 
         // User updates the item
@@ -207,7 +205,19 @@ mod tests {
             stack_id: None,
             source: None,
         }));
-
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1 - updated"])]);
+
+        // User forks the original item
+        view.merge(Packet::Fork(Fork {
+            id: scru128::new(),
+            source_id: item_id,
+            hash: Some(ssri::Integrity::from("Item 1 - forked")),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
+        assert_view_as_expected(
+            &view,
+            vec![("Stack 1", vec!["Item 1 - updated", "Item 1 - forked"])],
+        );
     }
 }
