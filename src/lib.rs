@@ -129,7 +129,8 @@ mod tests {
             items: HashMap::new(),
         };
 
-        // Scenario: User starts the app, a Stack is created with current timestamp and current clipboard content
+        // Scenario: User starts the app, a Stack is created with current timestamp and current
+        // clipboard content
         let now = chrono::Utc::now();
         let stack_name = format!(
             "# {}, at {}",
@@ -146,12 +147,11 @@ mod tests {
         merge(&mut view, stack_packet);
 
         // Current clipboard content is added to the Stack
-        let clipboard_content = "Hello, world!";
         let clipboard_packet = Packet::Add(Add {
             id: scru128::new(),
-            hash: ssri::Integrity::from(clipboard_content),
+            hash: ssri::Integrity::from("Hello"),
             stack_id: Some(stack_id),
-            source: Some(clipboard_content.to_string()),
+            source: None,
         });
         merge(&mut view, clipboard_packet);
 
