@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use scru128::Scru128Id;
+use serde::{Deserialize, Serialize};
+use ssri::Integrity;
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum MimeType {
@@ -12,7 +12,7 @@ pub enum MimeType {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct Content {
-    pub hash: Option<ssri::Integrity>,
+    pub hash: Option<Integrity>,
     pub mime_type: MimeType,
     pub terse: String,
     pub tiktokens: usize,
@@ -40,7 +40,7 @@ impl Packet {
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct AddPacket {
     pub id: Scru128Id,
-    pub hash: ssri::Integrity,
+    pub hash: Integrity,
     pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
@@ -49,7 +49,7 @@ pub struct AddPacket {
 pub struct UpdatePacket {
     pub id: Scru128Id,
     pub source_id: Scru128Id,
-    pub hash: Option<ssri::Integrity>,
+    pub hash: Option<Integrity>,
     pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
@@ -58,7 +58,7 @@ pub struct UpdatePacket {
 pub struct ForkPacket {
     pub id: Scru128Id,
     pub source_id: Scru128Id,
-    pub hash: Option<ssri::Integrity>,
+    pub hash: Option<Integrity>,
     pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
@@ -85,10 +85,14 @@ impl Store {
             .into_os_string()
             .into_string()
             .unwrap();
-        Store { packets, content, cache_path }
+        Store {
+            packets,
+            content,
+            cache_path,
+        }
     }
 
-    pub fn cas_write(&self, content: &[u8], mime_type: MimeType) -> ssri::Integrity {
+    pub fn cas_write(&self, content: &[u8], mime_type: MimeType) -> Integrity {
         let hash = cacache::write_hash_sync(&self.cache_path, content).unwrap();
         let content = Content {
             hash: Some(hash.clone()),
@@ -101,13 +105,15 @@ impl Store {
         hash
     }
 
-    pub fn cas_read(&self, hash: &ssri::Integrity) -> Option<Vec<u8>> {
+    pub fn cas_read(&self, hash: &Integrity) -> Option<Vec<u8>> {
         cacache::read_hash_sync(&self.cache_path, hash).ok()
     }
 
     pub fn insert_packet(&mut self, packet: &Packet) {
         let encoded: Vec<u8> = bincode::serialize(&packet).unwrap();
-        self.packets.insert(packet.id().to_bytes(), encoded).unwrap();
+        self.packets
+            .insert(packet.id().to_bytes(), encoded)
+            .unwrap();
     }
 
     pub fn scan(&self) -> impl Iterator<Item = Packet> {

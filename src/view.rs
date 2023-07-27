@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use scru128::Scru128Id;
+use ssri::Integrity;
 
 use crate::store::Packet;
 
@@ -10,7 +11,7 @@ use crate::store::Packet;
 pub struct Item {
     pub id: Scru128Id,
     pub touched: Vec<Scru128Id>,
-    pub hash: ssri::Integrity,
+    pub hash: Integrity,
     pub parent: Option<Scru128Id>,
     pub children: Vec<Scru128Id>,
 }

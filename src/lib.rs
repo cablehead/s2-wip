@@ -1,29 +1,31 @@
 mod store;
 mod view;
 
-pub use crate::view::View;
 pub use crate::store::Store;
+pub use crate::view::View;
 
 #[cfg(test)]
 mod tests {
+    use ssri::Integrity;
+
     use crate::store::{AddPacket, DeletePacket, ForkPacket, Packet, UpdatePacket};
     use crate::view::View;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let mut mapped_expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
+        let mut mapped_expected: Vec<(Integrity, Vec<Integrity>)> = expected
             .iter()
             .map(|(stack, items)| {
                 (
-                    ssri::Integrity::from(stack),
+                    Integrity::from(stack),
                     items
                         .into_iter()
-                        .map(|item| ssri::Integrity::from(item))
+                        .map(|item| Integrity::from(item))
                         .collect(),
                 )
             })
             .collect();
 
-        let mut view: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = view
+        let mut view: Vec<(Integrity, Vec<Integrity>)> = view
             .root()
             .iter()
             .map(|item| {
@@ -57,14 +59,14 @@ mod tests {
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id,
-            hash: ssri::Integrity::from("Stack 1"),
+            hash: Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id,
-            hash: ssri::Integrity::from("Item 1"),
+            hash: Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -73,7 +75,7 @@ mod tests {
         view.merge(Packet::Update(UpdatePacket {
             id: scru128::new(),
             source_id: item_id,
-            hash: Some(ssri::Integrity::from("Item 1 - updated")),
+            hash: Some(Integrity::from("Item 1 - updated")),
             stack_id: None,
             source: None,
         }));
@@ -87,14 +89,14 @@ mod tests {
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id,
-            hash: ssri::Integrity::from("Stack 1"),
+            hash: Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id,
-            hash: ssri::Integrity::from("Item 1"),
+            hash: Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -103,7 +105,7 @@ mod tests {
         view.merge(Packet::Fork(ForkPacket {
             id: scru128::new(),
             source_id: item_id,
-            hash: Some(ssri::Integrity::from("Item 1 - forked")),
+            hash: Some(Integrity::from("Item 1 - forked")),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -117,14 +119,14 @@ mod tests {
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id,
-            hash: ssri::Integrity::from("Stack 1"),
+            hash: Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id,
-            hash: ssri::Integrity::from("Item 1"),
+            hash: Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -133,7 +135,7 @@ mod tests {
         let stack_id_2 = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id_2,
-            hash: ssri::Integrity::from("Stack 2"),
+            hash: Integrity::from("Stack 2"),
             stack_id: None,
             source: None,
         }));
@@ -160,21 +162,21 @@ mod tests {
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id,
-            hash: ssri::Integrity::from("Stack 1"),
+            hash: Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id_1 = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id_1,
-            hash: ssri::Integrity::from("Item 1"),
+            hash: Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
         }));
         let item_id_2 = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id_2,
-            hash: ssri::Integrity::from("Item 2"),
+            hash: Integrity::from("Item 2"),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -195,21 +197,21 @@ mod tests {
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: stack_id,
-            hash: ssri::Integrity::from("Stack 1"),
+            hash: Integrity::from("Stack 1"),
             stack_id: None,
             source: None,
         }));
         let item_id_1 = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id_1,
-            hash: ssri::Integrity::from("Item 1"),
+            hash: Integrity::from("Item 1"),
             stack_id: Some(stack_id),
             source: None,
         }));
         let item_id_2 = scru128::new();
         view.merge(Packet::Add(AddPacket {
             id: item_id_2,
-            hash: ssri::Integrity::from("Item 2"),
+            hash: Integrity::from("Item 2"),
             stack_id: Some(stack_id),
             source: None,
         }));
@@ -219,7 +221,7 @@ mod tests {
         view.merge(Packet::Fork(ForkPacket {
             id: new_stack_id,
             source_id: stack_id,
-            hash: Some(ssri::Integrity::from("Stack 2")),
+            hash: Some(Integrity::from("Stack 2")),
             stack_id: None,
             source: None,
         }));
