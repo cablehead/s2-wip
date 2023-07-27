@@ -9,3 +9,6 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 scru128 = { version = "2.2.0", features = ["serde"] }
 ssri = "9.0.0"
+sled = "0.34.7"
+bincode = "1.3.3"
+cacache = { version = "11.6.0", default-features = false, features = ["tokio-runtime"] }

@@ -26,6 +26,17 @@ pub enum Packet {
     Delete(DeletePacket),
 }
 
+impl Packet {
+    pub fn id(&self) -> &Scru128Id {
+        match self {
+            Packet::Add(packet) => &packet.id,
+            Packet::Update(packet) => &packet.id,
+            Packet::Fork(packet) => &packet.id,
+            Packet::Delete(packet) => &packet.id,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct AddPacket {
     pub id: Scru128Id,
@@ -58,8 +69,6 @@ pub struct DeletePacket {
     pub source_id: Scru128Id,
 }
 
-
-/*
 pub struct Store {
     db: sled::Db,
     pub cache_path: String,
@@ -80,53 +89,19 @@ impl Store {
         cacache::write_hash_sync(&self.cache_path, content).unwrap()
     }
 
-    pub fn get(&mut self, id: &scru128::Scru128Id) -> Option<Packet> {
-        self.db
-            .get(id.to_bytes())
-            .ok()
-            .and_then(|maybe_value| maybe_value)
-            .and_then(|value| bincode::deserialize::<Packet>(&value).ok())
+    pub fn cas_read(&self, hash: &ssri::Integrity) -> Option<Vec<u8>> {
+        cacache::read_hash_sync(&self.cache_path, hash).ok()
     }
 
-    pub fn get_frame(&mut self, id: &scru128::Scru128Id) -> Option<Frame> {
-        match self.get(id) {
-            Some(Packet::Frame(frame)) => Some(frame),
-            _ => None,
-        }
-    }
-
-    pub fn insert_frame(&mut self, frame: &Frame) -> Packet {
-        let packet = Packet::Frame(frame.clone());
-        self.insert(&packet);
-        packet
-    }
-
-    pub fn insert(&mut self, packet: &Packet) {
+    pub fn insert_packet(&mut self, packet: &Packet) {
         let encoded: Vec<u8> = bincode::serialize(&packet).unwrap();
         self.db.insert(packet.id().to_bytes(), encoded).unwrap();
     }
 
-    pub fn delete(&mut self, hash: &ssri::Integrity, stack_hash: &Option<ssri::Integrity>) -> Packet {
-        let frame = DeleteFrame {
-            id: scru128::new(),
-            hash: hash.clone(),
-            stack_hash: stack_hash.clone(),
-        };
-
-        let packet = Packet::DeleteFrame(frame);
-        self.insert(&packet);
-        packet
-    }
-
-    pub fn list(&self) -> impl Iterator<Item = Packet> {
+    pub fn scan(&self) -> impl Iterator<Item = Packet> {
         self.db.iter().filter_map(|item| {
             item.ok()
                 .and_then(|(_, value)| bincode::deserialize::<Packet>(&value).ok())
         })
     }
-
-    pub fn cat(&self, hash: &ssri::Integrity) -> Option<Vec<u8>> {
-        cacache::read_hash_sync(&self.cache_path, hash).ok()
-    }
 }
-*/

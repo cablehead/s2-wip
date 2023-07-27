@@ -2,6 +2,7 @@ mod store;
 mod view;
 
 pub use crate::view::View;
+pub use crate::store::Store;
 
 #[cfg(test)]
 mod tests {
