@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use scru128::Scru128Id;
+
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum MimeType {
     #[serde(rename = "text/plain")]
@@ -28,47 +30,47 @@ pub enum Packet {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct AddPacket {
-    pub id: scru128::Scru128Id,
+    pub id: Scru128Id,
     pub hash: ssri::Integrity,
-    pub stack_id: Option<scru128::Scru128Id>,
+    pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct UpdatePacket {
-    pub id: scru128::Scru128Id,
-    pub source_id: scru128::Scru128Id,
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
     pub hash: Option<ssri::Integrity>,
-    pub stack_id: Option<scru128::Scru128Id>,
+    pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct ForkPacket {
-    pub id: scru128::Scru128Id,
-    pub source_id: scru128::Scru128Id,
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
     pub hash: Option<ssri::Integrity>,
-    pub stack_id: Option<scru128::Scru128Id>,
+    pub stack_id: Option<Scru128Id>,
     pub source: Option<String>,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct DeletePacket {
-    pub id: scru128::Scru128Id,
-    pub source_id: scru128::Scru128Id,
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Item {
-    pub id: scru128::Scru128Id,
-    pub touched: Vec<scru128::Scru128Id>,
+    pub id: Scru128Id,
+    pub touched: Vec<Scru128Id>,
     pub hash: ssri::Integrity,
-    pub parent: Option<scru128::Scru128Id>,
-    pub children: Vec<scru128::Scru128Id>,
+    pub parent: Option<Scru128Id>,
+    pub children: Vec<Scru128Id>,
 }
 
 pub struct View {
-    pub items: HashMap<scru128::Scru128Id, Item>,
+    pub items: HashMap<Scru128Id, Item>,
 }
 
 impl View {
