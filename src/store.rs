@@ -161,8 +161,8 @@ mod tests {
         assert_eq!(packet, stored_packet);
 
         match packet {
-            Packet::Add(add_packet) => {
-                let stored_content = store.cas_read(&add_packet.hash).unwrap();
+            Packet::Add(packet) => {
+                let stored_content = store.cas_read(&packet.hash).unwrap();
                 assert_eq!(content.to_vec(), stored_content);
             }
             _ => panic!("Expected AddPacket"),
