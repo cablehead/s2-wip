@@ -6,50 +6,53 @@ pub use crate::view::View;
 
 #[cfg(test)]
 mod tests {
-    use ssri::Integrity;
-
     use crate::store::{MimeType, Store};
     use crate::view::View;
 
-    fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let mut mapped_expected: Vec<(Integrity, Vec<Integrity>)> = expected
-            .iter()
-            .map(|(stack, items)| {
-                (
-                    Integrity::from(stack),
-                    items
-                        .into_iter()
-                        .map(|item| Integrity::from(item))
-                        .collect(),
-                )
-            })
-            .collect();
-
-        let mut view: Vec<(Integrity, Vec<Integrity>)> = view
+    fn assert_view_as_expected(store: &Store, view: &View, expected: Vec<(&str, Vec<&str>)>) {
+        let mut view: Vec<(String, Vec<String>)> = view
             .root()
             .iter()
-            .map(|item| {
-                let children_hashes = item
+            .filter_map(|item| {
+                let children = item
                     .children
                     .iter()
-                    .filter_map(|id| view.items.get(id))
-                    .map(|child| child.hash.clone())
-                    .collect();
-                (item.hash.clone(), children_hashes)
+                    .filter_map(|child_id| {
+                        view.items
+                            .get(child_id)
+                            .and_then(|child_item| store.cas_read(&child_item.hash))
+                            .map(|content| String::from_utf8_lossy(&content).into_owned())
+                    })
+                    .collect::<Vec<_>>();
+                store
+                    .cas_read(&item.hash)
+                    .map(|s| (String::from_utf8_lossy(&s).into_owned(), children))
             })
             .collect();
 
         // Sort the vectors before comparing
-        mapped_expected.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
-        for (_, v) in &mut mapped_expected {
-            v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-        }
-        view.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+        view.sort_by(|a, b| a.0.cmp(&b.0));
         for (_, v) in &mut view {
-            v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            v.sort();
         }
 
-        assert_eq!(view, mapped_expected, "\n\nExpected: {:?}\n", &expected);
+        let mut expected: Vec<(String, Vec<String>)> = expected
+            .into_iter()
+            .map(|(s, children)| {
+                (
+                    s.to_string(),
+                    children.into_iter().map(|c| c.to_string()).collect(),
+                )
+            })
+            .collect();
+
+        // Sort the expected vectors before comparing
+        expected.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, v) in &mut expected {
+            v.sort();
+        }
+
+        assert_eq!(view, expected, "\n\nExpected: {:?}\n", &expected);
     }
 
     #[test]
@@ -74,7 +77,7 @@ mod tests {
         );
 
         store.scan().for_each(|p| view.merge(p));
-        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1 - updated"])]);
+        assert_view_as_expected(&store, &view, vec![("Stack 1", vec!["Item 1 - updated"])]);
     }
 
     #[test]
@@ -100,7 +103,11 @@ mod tests {
         );
 
         store.scan().for_each(|p| view.merge(p));
-        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1", "Item 1 - forked"])]);
+        assert_view_as_expected(
+            &store,
+            &view,
+            vec![("Stack 1", vec!["Item 1", "Item 1 - forked"])],
+        );
     }
 
     #[test]
@@ -124,6 +131,7 @@ mod tests {
 
         store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(
+            &store,
             &view,
             vec![("Stack 1", vec![]), ("Stack 2", vec!["Item 1"])],
         );
@@ -149,7 +157,7 @@ mod tests {
         store.delete(item_id_1);
 
         store.scan().for_each(|p| view.merge(p));
-        assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 2"])]);
+        assert_view_as_expected(&store, &view, vec![("Stack 1", vec!["Item 2"])]);
     }
 
     #[test]
@@ -192,7 +200,7 @@ mod tests {
         store.scan().for_each(|p| view.merge(p));
         /*
         assert_view_as_expected(
-            &view,
+            &store, &view,
             vec![
                 ("Stack 1", vec!["Item 1", "Item 2"]),
                 ("Stack 2", vec!["Item 1", "Item 2"]),
