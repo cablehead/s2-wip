@@ -139,8 +139,8 @@ mod tests {
         let packet = Packet::Add(AddPacket {
             id: scru128::new(),
             hash: Integrity::from(b"test".to_vec()),
-            stack_id: Some(scru128::new()),
-            source: Some("test".to_string()),
+            stack_id: None,
+            source: None,
         });
 
         store.insert_packet(&packet);
