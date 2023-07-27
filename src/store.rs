@@ -143,7 +143,6 @@ impl Store {
 
     pub fn update(
         &mut self,
-        id: Scru128Id,
         source_id: Scru128Id,
         content: Option<&[u8]>,
         mime_type: MimeType,
@@ -152,11 +151,40 @@ impl Store {
     ) -> Packet {
         let hash = content.map(|c| self.cas_write(c, mime_type.clone()));
         let packet = Packet::Update(UpdatePacket {
-            id,
+            id: scru128::new(),
             source_id,
             hash,
             stack_id,
             source,
+        });
+        self.insert_packet(&packet);
+        packet
+    }
+
+    pub fn fork(
+        &mut self,
+        source_id: Scru128Id,
+        content: Option<&[u8]>,
+        mime_type: MimeType,
+        stack_id: Option<Scru128Id>,
+        source: Option<String>,
+    ) -> Packet {
+        let hash = content.map(|c| self.cas_write(c, mime_type.clone()));
+        let packet = Packet::Fork(ForkPacket {
+            id: scru128::new(),
+            source_id,
+            hash,
+            stack_id,
+            source,
+        });
+        self.insert_packet(&packet);
+        packet
+    }
+
+    pub fn delete(&mut self, source_id: Scru128Id) -> Packet {
+        let packet = Packet::Delete(DeletePacket {
+            id: scru128::new(),
+            source_id,
         });
         self.insert_packet(&packet);
         packet
@@ -201,17 +229,13 @@ mod tests {
         let packet = store.add(content, MimeType::TextPlain, None, None);
 
         let updated_content = b"Hello, updated world!";
-        let update_packet = match packet {
-            Packet::Add(packet) => store.update(
-                packet.id.clone(),
-                packet.id,
-                Some(updated_content),
-                MimeType::TextPlain,
-                None,
-                None,
-            ),
-            _ => panic!("Expected AddPacket"),
-        };
+        let update_packet = store.update(
+            packet.id().clone(),
+            Some(updated_content),
+            MimeType::TextPlain,
+            None,
+            None,
+        );
 
         let stored_update_packet = store.scan().last().unwrap();
         assert_eq!(update_packet, stored_update_packet);
@@ -223,5 +247,48 @@ mod tests {
             }
             _ => panic!("Expected UpdatePacket"),
         }
+    }
+
+    #[test]
+    fn test_fork() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
+
+        let content = b"Hello, world!";
+        let packet = store.add(content, MimeType::TextPlain, None, None);
+
+        let forked_content = b"Hello, forked world!";
+        let forked_packet = store.fork(
+            packet.id().clone(),
+            Some(forked_content),
+            MimeType::TextPlain,
+            None,
+            None,
+        );
+
+        let stored_fork_packet = store.scan().last().unwrap();
+        assert_eq!(forked_packet, stored_fork_packet);
+
+        match forked_packet {
+            Packet::Fork(packet) => {
+                let stored_content = store.cas_read(&packet.hash.unwrap()).unwrap();
+                assert_eq!(forked_content.to_vec(), stored_content);
+            }
+            _ => panic!("Expected ForkPacket"),
+        }
+    }
+
+    #[test]
+    fn test_delete() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+        let mut store = Store::new(path);
+        let content = b"Hello, world!";
+        let packet = store.add(content, MimeType::TextPlain, None, None);
+        let delete_packet = store.delete(packet.id().clone());
+        let stored_delete_packet = store.scan().last().unwrap();
+        assert_eq!(delete_packet, stored_delete_packet);
     }
 }
