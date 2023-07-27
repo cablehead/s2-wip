@@ -50,9 +50,7 @@ mod tests {
 
     #[test]
     fn test_update_item() {
-        let mut view = View {
-            items: HashMap::new(),
-        };
+        let mut view = View::new();
 
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
@@ -82,9 +80,7 @@ mod tests {
 
     #[test]
     fn test_fork_item() {
-        let mut view = View {
-            items: HashMap::new(),
-        };
+        let mut view = View::new();
 
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
@@ -114,9 +110,7 @@ mod tests {
 
     #[test]
     fn test_move_item_to_new_stack() {
-        let mut view = View {
-            items: HashMap::new(),
-        };
+        let mut view = View::new();
 
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
@@ -159,9 +153,7 @@ mod tests {
 
     #[test]
     fn test_delete_item() {
-        let mut view = View {
-            items: HashMap::new(),
-        };
+        let mut view = View::new();
 
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {
@@ -196,9 +188,7 @@ mod tests {
 
     #[test]
     fn test_fork_stack() {
-        let mut view = View {
-            items: HashMap::new(),
-        };
+        let mut view = View::new();
 
         let stack_id = scru128::new();
         view.merge(Packet::Add(AddPacket {

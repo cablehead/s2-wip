@@ -6,7 +6,6 @@ use scru128::Scru128Id;
 
 use crate::store::Packet;
 
-
 #[derive(Debug, Clone, Serialize)]
 pub struct Item {
     pub id: Scru128Id,
@@ -21,6 +20,12 @@ pub struct View {
 }
 
 impl View {
+    pub fn new() -> Self {
+        View {
+            items: HashMap::new(),
+        }
+    }
+
     pub fn merge(&mut self, packet: Packet) {
         match packet {
             Packet::Add(add) => {
