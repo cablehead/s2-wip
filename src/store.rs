@@ -140,6 +140,27 @@ impl Store {
         self.insert_packet(&packet);
         packet
     }
+
+    pub fn update(
+        &mut self,
+        id: Scru128Id,
+        source_id: Scru128Id,
+        content: Option<&[u8]>,
+        mime_type: MimeType,
+        stack_id: Option<Scru128Id>,
+        source: Option<String>,
+    ) -> Packet {
+        let hash = content.map(|c| self.cas_write(c, mime_type.clone()));
+        let packet = Packet::Update(UpdatePacket {
+            id,
+            source_id,
+            hash,
+            stack_id,
+            source,
+        });
+        self.insert_packet(&packet);
+        packet
+    }
 }
 
 #[cfg(test)]
@@ -148,7 +169,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_store() {
+    fn test_add() {
         let dir = tempdir().unwrap();
         let path = dir.path().to_str().unwrap();
 
@@ -166,6 +187,41 @@ mod tests {
                 assert_eq!(content.to_vec(), stored_content);
             }
             _ => panic!("Expected AddPacket"),
+        }
+    }
+
+    #[test]
+    fn test_update() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
+
+        let content = b"Hello, world!";
+        let packet = store.add(content, MimeType::TextPlain, None, None);
+
+        let updated_content = b"Hello, updated world!";
+        let update_packet = match packet {
+            Packet::Add(packet) => store.update(
+                packet.id.clone(),
+                packet.id,
+                Some(updated_content),
+                MimeType::TextPlain,
+                None,
+                None,
+            ),
+            _ => panic!("Expected AddPacket"),
+        };
+
+        let stored_update_packet = store.scan().last().unwrap();
+        assert_eq!(update_packet, stored_update_packet);
+
+        match update_packet {
+            Packet::Update(packet) => {
+                let stored_content = store.cas_read(&packet.hash.unwrap()).unwrap();
+                assert_eq!(updated_content.to_vec(), stored_content);
+            }
+            _ => panic!("Expected UpdatePacket"),
         }
     }
 }
