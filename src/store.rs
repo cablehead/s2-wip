@@ -122,6 +122,24 @@ impl Store {
                 .and_then(|(_, value)| bincode::deserialize::<Packet>(&value).ok())
         })
     }
+
+    pub fn add(
+        &mut self,
+        content: &[u8],
+        mime_type: MimeType,
+        stack_id: Option<Scru128Id>,
+        source: Option<String>,
+    ) -> Packet {
+        let hash = self.cas_write(content, mime_type);
+        let packet = Packet::Add(AddPacket {
+            id: scru128::new(),
+            hash,
+            stack_id,
+            source,
+        });
+        self.insert_packet(&packet);
+        packet
+    }
 }
 
 #[cfg(test)]
@@ -136,15 +154,18 @@ mod tests {
 
         let mut store = Store::new(path);
 
-        let packet = Packet::Add(AddPacket {
-            id: scru128::new(),
-            hash: Integrity::from(b"test".to_vec()),
-            stack_id: None,
-            source: None,
-        });
+        let content = b"Hello, world!";
+        let packet = store.add(content, MimeType::TextPlain, None, None);
 
-        store.insert_packet(&packet);
         let stored_packet = store.scan().next().unwrap();
         assert_eq!(packet, stored_packet);
+
+        match packet {
+            Packet::Add(add_packet) => {
+                let stored_content = store.cas_read(&add_packet.hash).unwrap();
+                assert_eq!(content.to_vec(), stored_content);
+            }
+            _ => panic!("Expected AddPacket"),
+        }
     }
 }
