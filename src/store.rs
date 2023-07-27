@@ -69,39 +69,106 @@ pub struct DeletePacket {
     pub source_id: Scru128Id,
 }
 
+pub struct Index {
+    content_field: tantivy::schema::Field,
+    hash_field: tantivy::schema::Field,
+    writer: tantivy::IndexWriter,
+    reader: tantivy::IndexReader,
+}
+
+impl Index {
+    fn new(path: std::path::PathBuf) -> Index {
+        let mut schema_builder = tantivy::schema::Schema::builder();
+        let content_field = schema_builder.add_text_field("content", tantivy::schema::TEXT);
+        let hash_field = schema_builder.add_bytes_field("hash", tantivy::schema::STORED);
+        let schema = schema_builder.build();
+
+        std::fs::create_dir_all(&path).unwrap();
+        let dir = tantivy::directory::MmapDirectory::open(&path).unwrap();
+        let index = tantivy::Index::open_or_create(dir, schema.clone()).unwrap();
+        let writer = index.writer_with_num_threads(1, 3_000_000).unwrap();
+        let reader = index.reader().unwrap();
+
+        Index {
+            content_field,
+            hash_field,
+            writer,
+            reader,
+        }
+    }
+
+    fn write(&mut self, hash: &ssri::Integrity, content: &[u8]) {
+        let content = String::from_utf8_lossy(content);
+        let mut doc = tantivy::Document::new();
+        doc.add_text(self.content_field, &content);
+        let bytes = bincode::serialize(&hash).unwrap();
+        doc.add_bytes(self.hash_field, bytes);
+        self.writer.add_document(doc).unwrap();
+        self.writer.commit().unwrap();
+    }
+
+    pub fn query(&self, query: &str) -> Vec<(f32, ssri::Integrity)> {
+        let term = tantivy::schema::Term::from_field_text(self.content_field, query);
+        let query = tantivy::query::FuzzyTermQuery::new(term, 2, true);
+
+        let searcher = self.reader.searcher();
+        let top_docs = searcher
+            .search(&query, &tantivy::collector::TopDocs::with_limit(400))
+            .unwrap();
+
+        top_docs
+            .into_iter()
+            .map(|(score, doc_address)| {
+                let doc = searcher.doc(doc_address).unwrap();
+                let bytes = doc.get_first(self.hash_field).unwrap().as_bytes().unwrap();
+                let hash: ssri::Integrity = bincode::deserialize(&bytes).unwrap();
+                (score, hash)
+            })
+            .collect()
+    }
+}
+
 pub struct Store {
     packets: sled::Tree,
     content: sled::Tree,
-    pub cache_path: String,
+    cache_path: String,
+    pub index: Index,
 }
 
 impl Store {
     pub fn new(path: &str) -> Store {
-        let db = sled::open(std::path::Path::new(path).join("index")).unwrap();
+        let path = std::path::Path::new(path);
+        let db = sled::open(path.join("sled")).unwrap();
         let packets = db.open_tree("packets").unwrap();
         let content = db.open_tree("content").unwrap();
-        let cache_path = std::path::Path::new(path)
-            .join("cas")
-            .into_os_string()
-            .into_string()
-            .unwrap();
+        let cache_path = path.join("cas").into_os_string().into_string().unwrap();
+
         Store {
             packets,
             content,
             cache_path,
+            index: Index::new(path.join("index")),
         }
     }
 
-    pub fn cas_write(&self, content: &[u8], mime_type: MimeType) -> Integrity {
+    pub fn cas_write(&mut self, content: &[u8], mime_type: MimeType) -> Integrity {
         let hash = cacache::write_hash_sync(&self.cache_path, content).unwrap();
-        let content = Content {
+
+        let meta = Content {
             hash: Some(hash.clone()),
-            mime_type,
+            mime_type: mime_type.clone(),
             terse: String::from_utf8_lossy(content).into_owned(),
             tiktokens: content.len(),
         };
-        let encoded: Vec<u8> = bincode::serialize(&content).unwrap();
-        self.content.insert(hash.to_string(), encoded).unwrap();
+        let encoded: Vec<u8> = bincode::serialize(&meta).unwrap();
+        let bytes = bincode::serialize(&hash).unwrap();
+        self.content.insert(bytes, encoded).unwrap();
+
+        match mime_type {
+            MimeType::TextPlain => self.index.write(&hash, content),
+            MimeType::ImagePng => (),
+        }
+
         hash
     }
 
@@ -290,5 +357,29 @@ mod tests {
         let delete_packet = store.delete(packet.id().clone());
         let stored_delete_packet = store.scan().last().unwrap();
         assert_eq!(delete_packet, stored_delete_packet);
+    }
+
+    #[test]
+    fn test_query() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
+
+        let content1 = b"Hello, world!";
+        let content2 = b"Hello, fuzzy world!";
+        let content3 = b"Hello, there!";
+
+        store.add(content1, MimeType::TextPlain, None, None);
+        store.add(content2, MimeType::TextPlain, None, None);
+        store.add(content3, MimeType::TextPlain, None, None);
+
+        let results = store.index.query("fzzy");
+        let results: Vec<_> = results
+            .into_iter()
+            .map(|(_, hash)| store.cas_read(&hash).unwrap())
+            .collect();
+
+        assert_eq!(results, vec![b"Hello, fuzzy world!".to_vec()]);
     }
 }
