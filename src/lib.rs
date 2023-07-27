@@ -8,9 +8,7 @@ pub use crate::view::View;
 mod tests {
     use ssri::Integrity;
 
-    use crate::store::{
-        AddPacket, DeletePacket, ForkPacket, MimeType, Packet, Store, UpdatePacket,
-    };
+    use crate::store::{MimeType, Store};
     use crate::view::View;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
@@ -81,71 +79,50 @@ mod tests {
 
     #[test]
     fn test_fork_item() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
         let mut view = View::new();
 
-        let stack_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id,
-            hash: Integrity::from("Stack 1"),
-            stack_id: None,
-            source: None,
-        }));
-        let item_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id,
-            hash: Integrity::from("Item 1"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
+        let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
+        let item_id = store
+            .add(b"Item 1", MimeType::TextPlain, Some(stack_id), None)
+            .id();
 
         // User forks the original item
-        view.merge(Packet::Fork(ForkPacket {
-            id: scru128::new(),
-            source_id: item_id,
-            hash: Some(Integrity::from("Item 1 - forked")),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
+        store.fork(
+            item_id,
+            Some(b"Item 1 - forked"),
+            MimeType::TextPlain,
+            Some(stack_id),
+            None,
+        );
+
+        store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1", "Item 1 - forked"])]);
     }
 
     #[test]
     fn test_move_item_to_new_stack() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
         let mut view = View::new();
 
-        let stack_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id,
-            hash: Integrity::from("Stack 1"),
-            stack_id: None,
-            source: None,
-        }));
-        let item_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id,
-            hash: Integrity::from("Item 1"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
+        let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
+        let item_id = store
+            .add(b"Item 1", MimeType::TextPlain, Some(stack_id), None)
+            .id();
 
         // User creates a new Stack "Stack 2"
-        let stack_id_2 = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id_2,
-            hash: Integrity::from("Stack 2"),
-            stack_id: None,
-            source: None,
-        }));
+        let stack_id_2 = store.add(b"Stack 2", MimeType::TextPlain, None, None).id();
 
         // User moves the original item to "Stack 2"
-        view.merge(Packet::Update(UpdatePacket {
-            id: scru128::new(),
-            source_id: item_id,
-            hash: None,
-            stack_id: Some(stack_id_2),
-            source: None,
-        }));
+        store.update(item_id, None, MimeType::TextPlain, Some(stack_id_2), None);
 
+        store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(
             &view,
             vec![("Stack 1", vec![]), ("Stack 2", vec!["Item 1"])],
@@ -154,93 +131,65 @@ mod tests {
 
     #[test]
     fn test_delete_item() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
         let mut view = View::new();
 
-        let stack_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id,
-            hash: Integrity::from("Stack 1"),
-            stack_id: None,
-            source: None,
-        }));
-        let item_id_1 = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id_1,
-            hash: Integrity::from("Item 1"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
-        let item_id_2 = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id_2,
-            hash: Integrity::from("Item 2"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
+        let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
+        let item_id_1 = store
+            .add(b"Item 1", MimeType::TextPlain, Some(stack_id), None)
+            .id();
+        let _item_id_2 = store
+            .add(b"Item 2", MimeType::TextPlain, Some(stack_id), None)
+            .id();
 
         // User deletes the first item
-        view.merge(Packet::Delete(DeletePacket {
-            id: scru128::new(),
-            source_id: item_id_1,
-        }));
+        store.delete(item_id_1);
 
+        store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 2"])]);
     }
 
     #[test]
     fn test_fork_stack() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
         let mut view = View::new();
 
-        let stack_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id,
-            hash: Integrity::from("Stack 1"),
-            stack_id: None,
-            source: None,
-        }));
-        let item_id_1 = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id_1,
-            hash: Integrity::from("Item 1"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
-        let item_id_2 = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id_2,
-            hash: Integrity::from("Item 2"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
+        let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
+        let item_id_1 = store
+            .add(b"Item 1", MimeType::TextPlain, Some(stack_id), None)
+            .id();
+        let item_id_2 = store
+            .add(b"Item 2", MimeType::TextPlain, Some(stack_id), None)
+            .id();
 
         // User forks the stack
-        let new_stack_id = scru128::new();
-        view.merge(Packet::Fork(ForkPacket {
-            id: new_stack_id,
-            source_id: stack_id,
-            hash: Some(Integrity::from("Stack 2")),
-            stack_id: None,
-            source: None,
-        }));
+        let new_stack_id = store
+            .fork(stack_id, Some(b"Stack 2"), MimeType::TextPlain, None, None)
+            .id();
 
         // User forks the items to the new stack
-        let new_item_id_1 = scru128::new();
-        view.merge(Packet::Fork(ForkPacket {
-            id: new_item_id_1,
-            source_id: item_id_1,
-            hash: None,
-            stack_id: Some(new_stack_id),
-            source: None,
-        }));
-        let new_item_id_2 = scru128::new();
-        view.merge(Packet::Fork(ForkPacket {
-            id: new_item_id_2,
-            source_id: item_id_2,
-            hash: None,
-            stack_id: Some(new_stack_id),
-            source: None,
-        }));
+        store.fork(
+            item_id_1,
+            None,
+            MimeType::TextPlain,
+            Some(new_stack_id),
+            None,
+        );
+        store.fork(
+            item_id_2,
+            None,
+            MimeType::TextPlain,
+            Some(new_stack_id),
+            None,
+        );
 
+        store.scan().for_each(|p| view.merge(p));
         /*
         assert_view_as_expected(
             &view,
