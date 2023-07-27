@@ -10,7 +10,7 @@ mod tests {
     use crate::view::View;
 
     fn assert_view_as_expected(store: &Store, view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let mut view: Vec<(String, Vec<String>)> = view
+        let mut actual: Vec<(String, Vec<String>)> = view
             .root()
             .iter()
             .filter_map(|item| {
@@ -31,8 +31,8 @@ mod tests {
             .collect();
 
         // Sort the vectors before comparing
-        view.sort_by(|a, b| a.0.cmp(&b.0));
-        for (_, v) in &mut view {
+        actual.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, v) in &mut actual {
             v.sort();
         }
 
@@ -52,7 +52,7 @@ mod tests {
             v.sort();
         }
 
-        assert_eq!(view, expected, "\n\nExpected: {:?}\n", &expected);
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -198,7 +198,6 @@ mod tests {
         );
 
         store.scan().for_each(|p| view.merge(p));
-        /*
         assert_view_as_expected(
             &store, &view,
             vec![
@@ -206,6 +205,5 @@ mod tests {
                 ("Stack 2", vec!["Item 1", "Item 2"]),
             ],
         );
-        */
     }
 }
