@@ -1,11 +1,12 @@
 mod store;
 mod view;
 
+pub use crate::view::View;
+
 #[cfg(test)]
 mod tests {
     use crate::store::{AddPacket, DeletePacket, ForkPacket, Packet, UpdatePacket};
     use crate::view::View;
-    use std::collections::HashMap;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
         let mut mapped_expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected

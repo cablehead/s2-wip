@@ -19,6 +19,12 @@ pub struct View {
     pub items: HashMap<Scru128Id, Item>,
 }
 
+impl Default for View {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl View {
     pub fn new() -> Self {
         View {
