@@ -96,7 +96,10 @@ impl View {
 
                     if let Some(new_stack_id) = fork.stack_id {
                         new_item.parent = Some(new_stack_id);
-                        if let Some(new_parent) = self.items.get_mut(&new_stack_id) {
+                    }
+
+                    if let Some(parent_id) = new_item.parent {
+                        if let Some(new_parent) = self.items.get_mut(&parent_id) {
                             // Remove the forked item from forked_children
                             new_parent
                                 .forked_children

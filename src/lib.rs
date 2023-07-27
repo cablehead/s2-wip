@@ -98,7 +98,7 @@ mod tests {
             item_id,
             Some(b"Item 1 - forked"),
             MimeType::TextPlain,
-            Some(stack_id),
+            None,
             None,
         );
 
