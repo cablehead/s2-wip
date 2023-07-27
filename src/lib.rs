@@ -15,7 +15,7 @@ mod tests {
             .iter()
             .filter_map(|item| {
                 let children = item
-                    .children
+                    .get_children()
                     .iter()
                     .filter_map(|child_id| {
                         view.items
@@ -166,7 +166,6 @@ mod tests {
         let path = dir.path().to_str().unwrap();
 
         let mut store = Store::new(path);
-        let mut view = View::new();
 
         let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
         let item_id_1 = store
@@ -180,6 +179,16 @@ mod tests {
         let new_stack_id = store
             .fork(stack_id, Some(b"Stack 2"), MimeType::TextPlain, None, None)
             .id();
+
+        let mut view = View::new();
+        store.scan().for_each(|p| view.merge(p));
+        assert_view_as_expected(
+            &store, &view,
+            vec![
+                ("Stack 1", vec!["Item 1", "Item 2"]),
+                ("Stack 2", vec!["Item 1", "Item 2"]),
+            ],
+        );
 
         // User forks the items to the new stack
         store.fork(
@@ -197,6 +206,7 @@ mod tests {
             None,
         );
 
+        let mut view = View::new();
         store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(
             &store, &view,

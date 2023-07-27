@@ -14,6 +14,15 @@ pub struct Item {
     pub hash: Integrity,
     pub parent: Option<Scru128Id>,
     pub children: Vec<Scru128Id>,
+    pub forked_children: Vec<Scru128Id>,
+}
+
+impl Item {
+    pub fn get_children(&self) -> Vec<Scru128Id> {
+        let mut children = self.children.clone();
+        children.extend(&self.forked_children);
+        children
+    }
 }
 
 pub struct View {
@@ -42,6 +51,7 @@ impl View {
                     hash: add.hash,
                     parent: add.stack_id,
                     children: Vec::new(),
+                    forked_children: Vec::new(),
                 };
                 if let Some(parent_id) = add.stack_id {
                     if let Some(parent) = self.items.get_mut(&parent_id) {
@@ -76,15 +86,26 @@ impl View {
                     let mut new_item = item.clone();
                     new_item.id = fork.id;
                     new_item.touched.push(fork.id);
+
+                    new_item.forked_children = item.children.clone();
+                    new_item.children = Vec::new();
+
                     if let Some(new_hash) = fork.hash {
                         new_item.hash = new_hash;
                     }
+
                     if let Some(new_stack_id) = fork.stack_id {
                         new_item.parent = Some(new_stack_id);
                         if let Some(new_parent) = self.items.get_mut(&new_stack_id) {
+                            // Remove the forked item from forked_children
+                            new_parent
+                                .forked_children
+                                .retain(|&id| id != fork.source_id);
+                            // And add the new item to children
                             new_parent.children.push(fork.id);
                         }
                     }
+
                     self.items.insert(fork.id, new_item);
                 }
             }
