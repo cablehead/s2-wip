@@ -27,12 +27,12 @@ pub enum Packet {
 }
 
 impl Packet {
-    pub fn id(&self) -> &Scru128Id {
+    pub fn id(&self) -> Scru128Id {
         match self {
-            Packet::Add(packet) => &packet.id,
-            Packet::Update(packet) => &packet.id,
-            Packet::Fork(packet) => &packet.id,
-            Packet::Delete(packet) => &packet.id,
+            Packet::Add(packet) => packet.id,
+            Packet::Update(packet) => packet.id,
+            Packet::Fork(packet) => packet.id,
+            Packet::Delete(packet) => packet.id,
         }
     }
 }

@@ -8,7 +8,9 @@ pub use crate::view::View;
 mod tests {
     use ssri::Integrity;
 
-    use crate::store::{AddPacket, DeletePacket, ForkPacket, Packet, UpdatePacket};
+    use crate::store::{
+        AddPacket, DeletePacket, ForkPacket, MimeType, Packet, Store, UpdatePacket,
+    };
     use crate::view::View;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
@@ -54,31 +56,26 @@ mod tests {
 
     #[test]
     fn test_update_item() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
         let mut view = View::new();
 
-        let stack_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: stack_id,
-            hash: Integrity::from("Stack 1"),
-            stack_id: None,
-            source: None,
-        }));
-        let item_id = scru128::new();
-        view.merge(Packet::Add(AddPacket {
-            id: item_id,
-            hash: Integrity::from("Item 1"),
-            stack_id: Some(stack_id),
-            source: None,
-        }));
-
+        let stack_id = store.add(b"Stack 1", MimeType::TextPlain, None, None).id();
+        let item_id = store
+            .add(b"Item 1", MimeType::TextPlain, Some(stack_id), None)
+            .id();
         // User updates the item
-        view.merge(Packet::Update(UpdatePacket {
-            id: scru128::new(),
-            source_id: item_id,
-            hash: Some(Integrity::from("Item 1 - updated")),
-            stack_id: None,
-            source: None,
-        }));
+        store.update(
+            item_id,
+            Some(b"Item 1 - updated"),
+            MimeType::TextPlain,
+            None,
+            None,
+        );
+
+        store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 1 - updated"])]);
     }
 
