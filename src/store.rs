@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use scru128::Scru128Id;
+
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum MimeType {
     #[serde(rename = "text/plain")]
@@ -9,36 +11,55 @@ pub enum MimeType {
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct Frame {
-    pub id: scru128::Scru128Id,
-    pub source: Option<String>,
-    pub stack_hash: Option<ssri::Integrity>,
+pub struct Content {
+    pub hash: Option<ssri::Integrity>,
     pub mime_type: MimeType,
-    pub hash: ssri::Integrity,
-}
-
-#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub struct DeleteFrame {
-    pub id: scru128::Scru128Id,
-    pub hash: ssri::Integrity,
-    pub stack_hash: Option<ssri::Integrity>,
+    pub terse: String,
+    pub tiktokens: usize,
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum Packet {
-    Frame(Frame),
-    DeleteFrame(DeleteFrame),
+    Add(AddPacket),
+    Update(UpdatePacket),
+    Fork(ForkPacket),
+    Delete(DeletePacket),
 }
 
-impl Packet {
-    pub fn id(&self) -> &scru128::Scru128Id {
-        match self {
-            Packet::Frame(frame) => &frame.id,
-            Packet::DeleteFrame(delete_frame) => &delete_frame.id,
-        }
-    }
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub struct AddPacket {
+    pub id: Scru128Id,
+    pub hash: ssri::Integrity,
+    pub stack_id: Option<Scru128Id>,
+    pub source: Option<String>,
 }
 
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub struct UpdatePacket {
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
+    pub hash: Option<ssri::Integrity>,
+    pub stack_id: Option<Scru128Id>,
+    pub source: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub struct ForkPacket {
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
+    pub hash: Option<ssri::Integrity>,
+    pub stack_id: Option<Scru128Id>,
+    pub source: Option<String>,
+}
+
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub struct DeletePacket {
+    pub id: Scru128Id,
+    pub source_id: Scru128Id,
+}
+
+
+/*
 pub struct Store {
     db: sled::Db,
     pub cache_path: String,
@@ -108,3 +129,4 @@ impl Store {
         cacache::read_hash_sync(&self.cache_path, hash).ok()
     }
 }
+*/
