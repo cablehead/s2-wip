@@ -85,7 +85,7 @@ impl Index {
 
         std::fs::create_dir_all(&path).unwrap();
         let dir = tantivy::directory::MmapDirectory::open(&path).unwrap();
-        let index = tantivy::Index::open_or_create(dir, schema.clone()).unwrap();
+        let index = tantivy::Index::open_or_create(dir, schema).unwrap();
         let writer = index.writer_with_num_threads(1, 3_000_000).unwrap();
         let reader = index.reader().unwrap();
 
@@ -121,7 +121,7 @@ impl Index {
             .map(|(score, doc_address)| {
                 let doc = searcher.doc(doc_address).unwrap();
                 let bytes = doc.get_first(self.hash_field).unwrap().as_bytes().unwrap();
-                let hash: ssri::Integrity = bincode::deserialize(&bytes).unwrap();
+                let hash: ssri::Integrity = bincode::deserialize(bytes).unwrap();
                 (score, hash)
             })
             .collect()
