@@ -120,10 +120,8 @@ impl View {
                     }
                     if let Some(new_stack_id) = fork.stack_id {
                         new_item.parent = Some(new_stack_id);
-                    }
-                    if let Some(parent_id) = item.parent {
-                        if let Some(parent) = self.items.get_mut(&parent_id) {
-                            parent.children.push(fork.id);
+                        if let Some(new_parent) = self.items.get_mut(&new_stack_id) {
+                            new_parent.children.push(fork.id);
                         }
                     }
                     self.items.insert(fork.id, new_item);
@@ -155,8 +153,8 @@ mod tests {
     use super::*;
 
     fn assert_view_as_expected(view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let mut expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
-            .into_iter()
+        let mut mapped_expected: Vec<(ssri::Integrity, Vec<ssri::Integrity>)> = expected
+            .iter()
             .map(|(stack, items)| {
                 (
                     ssri::Integrity::from(stack),
@@ -183,8 +181,8 @@ mod tests {
             .collect();
 
         // Sort the vectors before comparing
-        expected.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
-        for (_, v) in &mut expected {
+        mapped_expected.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+        for (_, v) in &mut mapped_expected {
             v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
         }
         view.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
@@ -192,7 +190,7 @@ mod tests {
             v.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
         }
 
-        assert_eq!(view, expected);
+        assert_eq!(view, mapped_expected, "\n\nExpected: {:?}\n", &expected);
     }
 
     #[test]
@@ -339,5 +337,70 @@ mod tests {
         }));
 
         assert_view_as_expected(&view, vec![("Stack 1", vec!["Item 2"])]);
+    }
+
+    #[test]
+    fn test_fork_stack() {
+        let mut view = View {
+            items: HashMap::new(),
+        };
+
+        let stack_id = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: stack_id,
+            hash: ssri::Integrity::from("Stack 1"),
+            stack_id: None,
+            source: None,
+        }));
+        let item_id_1 = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: item_id_1,
+            hash: ssri::Integrity::from("Item 1"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
+        let item_id_2 = scru128::new();
+        view.merge(Packet::Add(AddPacket {
+            id: item_id_2,
+            hash: ssri::Integrity::from("Item 2"),
+            stack_id: Some(stack_id),
+            source: None,
+        }));
+
+        // User forks the stack
+        let new_stack_id = scru128::new();
+        view.merge(Packet::Fork(ForkPacket {
+            id: new_stack_id,
+            source_id: stack_id,
+            hash: Some(ssri::Integrity::from("Stack 2")),
+            stack_id: None,
+            source: None,
+        }));
+
+        // User forks the items to the new stack
+        let new_item_id_1 = scru128::new();
+        view.merge(Packet::Fork(ForkPacket {
+            id: new_item_id_1,
+            source_id: item_id_1,
+            hash: None,
+            stack_id: Some(new_stack_id),
+            source: None,
+        }));
+        let new_item_id_2 = scru128::new();
+        view.merge(Packet::Fork(ForkPacket {
+            id: new_item_id_2,
+            source_id: item_id_2,
+            hash: None,
+            stack_id: Some(new_stack_id),
+            source: None,
+        }));
+
+        assert_view_as_expected(
+            &view,
+            vec![
+                ("Stack 1", vec!["Item 1", "Item 2"]),
+                ("Stack 2", vec!["Item 1", "Item 2"]),
+            ],
+        );
     }
 }
