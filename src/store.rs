@@ -123,3 +123,28 @@ impl Store {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_store() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().to_str().unwrap();
+
+        let mut store = Store::new(path);
+
+        let packet = Packet::Add(AddPacket {
+            id: scru128::new(),
+            hash: Integrity::from(b"test".to_vec()),
+            stack_id: Some(scru128::new()),
+            source: Some("test".to_string()),
+        });
+
+        store.insert_packet(&packet);
+        let stored_packet = store.scan().next().unwrap();
+        assert_eq!(packet, stored_packet);
+    }
+}
