@@ -63,25 +63,25 @@ impl View {
                 }
                 self.items.insert(packet.id, item);
             }
-            Packet::Update(update) => {
-                if let Some(item) = self.items.get(&update.source_id).cloned() {
+            Packet::Update(packet) => {
+                if let Some(item) = self.items.get(&packet.source_id).cloned() {
                     let mut item = item;
-                    item.touched.push(update.id);
-                    if let Some(new_hash) = update.hash {
+                    item.touched.push(packet.id);
+                    if let Some(new_hash) = packet.hash {
                         item.hash = new_hash;
                     }
-                    if let Some(new_stack_id) = update.stack_id {
+                    if let Some(new_stack_id) = packet.stack_id {
                         if let Some(old_stack_id) = item.stack_id {
                             if let Some(old_stack) = self.items.get_mut(&old_stack_id) {
-                                old_stack.children.retain(|&id| id != update.source_id);
+                                old_stack.children.retain(|&id| id != packet.source_id);
                             }
                         }
                         item.stack_id = Some(new_stack_id);
                         if let Some(new_stack) = self.items.get_mut(&new_stack_id) {
-                            new_stack.children.push(update.source_id);
+                            new_stack.children.push(packet.source_id);
                         }
                     }
-                    self.items.insert(update.source_id, item);
+                    self.items.insert(packet.source_id, item);
                 }
             }
             Packet::Fork(fork) => {
