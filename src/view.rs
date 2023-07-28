@@ -10,9 +10,10 @@ use crate::store::Packet;
 #[derive(Debug, Clone, Serialize)]
 pub struct Item {
     pub id: Scru128Id,
+    pub last_touched: Scru128Id,
     pub touched: Vec<Scru128Id>,
     pub hash: Integrity,
-    pub parent: Option<Scru128Id>,
+    pub stack_id: Option<Scru128Id>,
     pub children: Vec<Scru128Id>,
     pub forked_children: Vec<Scru128Id>,
 }
@@ -44,21 +45,23 @@ impl View {
 
     pub fn merge(&mut self, packet: Packet) {
         match packet {
-            Packet::Add(add) => {
+            Packet::Add(packet) => {
                 let item = Item {
-                    id: add.id,
-                    touched: vec![add.id],
-                    hash: add.hash,
-                    parent: add.stack_id,
+                    id: packet.id,
+                    last_touched: packet.id,
+                    touched: vec![packet.id],
+                    hash: packet.hash,
+                    stack_id: packet.stack_id,
                     children: Vec::new(),
                     forked_children: Vec::new(),
                 };
-                if let Some(parent_id) = add.stack_id {
-                    if let Some(parent) = self.items.get_mut(&parent_id) {
-                        parent.children.push(add.id);
+
+                if let Some(stack_id) = packet.stack_id {
+                    if let Some(stack) = self.items.get_mut(&stack_id) {
+                        stack.children.push(packet.id);
                     }
                 }
-                self.items.insert(add.id, item);
+                self.items.insert(packet.id, item);
             }
             Packet::Update(update) => {
                 if let Some(item) = self.items.get(&update.source_id).cloned() {
@@ -68,14 +71,14 @@ impl View {
                         item.hash = new_hash;
                     }
                     if let Some(new_stack_id) = update.stack_id {
-                        if let Some(old_parent_id) = item.parent {
-                            if let Some(old_parent) = self.items.get_mut(&old_parent_id) {
-                                old_parent.children.retain(|&id| id != update.source_id);
+                        if let Some(old_stack_id) = item.stack_id {
+                            if let Some(old_stack) = self.items.get_mut(&old_stack_id) {
+                                old_stack.children.retain(|&id| id != update.source_id);
                             }
                         }
-                        item.parent = Some(new_stack_id);
-                        if let Some(new_parent) = self.items.get_mut(&new_stack_id) {
-                            new_parent.children.push(update.source_id);
+                        item.stack_id = Some(new_stack_id);
+                        if let Some(new_stack) = self.items.get_mut(&new_stack_id) {
+                            new_stack.children.push(update.source_id);
                         }
                     }
                     self.items.insert(update.source_id, item);
@@ -95,17 +98,15 @@ impl View {
                     }
 
                     if let Some(new_stack_id) = fork.stack_id {
-                        new_item.parent = Some(new_stack_id);
+                        new_item.stack_id = Some(new_stack_id);
                     }
 
-                    if let Some(parent_id) = new_item.parent {
-                        if let Some(new_parent) = self.items.get_mut(&parent_id) {
+                    if let Some(stack_id) = new_item.stack_id {
+                        if let Some(new_stack) = self.items.get_mut(&stack_id) {
                             // Remove the forked item from forked_children
-                            new_parent
-                                .forked_children
-                                .retain(|&id| id != fork.source_id);
+                            new_stack.forked_children.retain(|&id| id != fork.source_id);
                             // And add the new item to children
-                            new_parent.children.push(fork.id);
+                            new_stack.children.push(fork.id);
                         }
                     }
 
@@ -114,9 +115,9 @@ impl View {
             }
             Packet::Delete(delete) => {
                 if let Some(item) = self.items.remove(&delete.source_id) {
-                    if let Some(parent_id) = item.parent {
-                        if let Some(parent) = self.items.get_mut(&parent_id) {
-                            parent.children.retain(|&id| id != delete.source_id);
+                    if let Some(stack_id) = item.stack_id {
+                        if let Some(stack) = self.items.get_mut(&stack_id) {
+                            stack.children.retain(|&id| id != delete.source_id);
                         }
                     }
                 }
@@ -127,7 +128,7 @@ impl View {
     pub fn root(&self) -> Vec<Item> {
         self.items
             .values()
-            .filter(|item| item.parent.is_none())
+            .filter(|item| item.stack_id.is_none())
             .cloned()
             .collect()
     }
