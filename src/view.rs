@@ -84,40 +84,42 @@ impl View {
                     self.items.insert(packet.source_id, item);
                 }
             }
-            Packet::Fork(fork) => {
-                if let Some(item) = self.items.get(&fork.source_id) {
+            Packet::Fork(packet) => {
+                if let Some(item) = self.items.get(&packet.source_id) {
                     let mut new_item = item.clone();
-                    new_item.id = fork.id;
-                    new_item.touched.push(fork.id);
+                    new_item.id = packet.id;
+                    new_item.touched.push(packet.id);
 
                     new_item.forked_children = item.children.clone();
                     new_item.children = Vec::new();
 
-                    if let Some(new_hash) = fork.hash {
+                    if let Some(new_hash) = packet.hash {
                         new_item.hash = new_hash;
                     }
 
-                    if let Some(new_stack_id) = fork.stack_id {
+                    if let Some(new_stack_id) = packet.stack_id {
                         new_item.stack_id = Some(new_stack_id);
                     }
 
                     if let Some(stack_id) = new_item.stack_id {
                         if let Some(new_stack) = self.items.get_mut(&stack_id) {
                             // Remove the forked item from forked_children
-                            new_stack.forked_children.retain(|&id| id != fork.source_id);
+                            new_stack
+                                .forked_children
+                                .retain(|&id| id != packet.source_id);
                             // And add the new item to children
-                            new_stack.children.push(fork.id);
+                            new_stack.children.push(packet.id);
                         }
                     }
 
-                    self.items.insert(fork.id, new_item);
+                    self.items.insert(packet.id, new_item);
                 }
             }
-            Packet::Delete(delete) => {
-                if let Some(item) = self.items.remove(&delete.source_id) {
+            Packet::Delete(packet) => {
+                if let Some(item) = self.items.remove(&packet.source_id) {
                     if let Some(stack_id) = item.stack_id {
                         if let Some(stack) = self.items.get_mut(&stack_id) {
-                            stack.children.retain(|&id| id != delete.source_id);
+                            stack.children.retain(|&id| id != packet.source_id);
                         }
                     }
                 }
