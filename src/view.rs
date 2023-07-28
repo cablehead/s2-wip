@@ -18,14 +18,6 @@ pub struct Item {
     pub forked_children: Vec<Scru128Id>,
 }
 
-impl Item {
-    pub fn get_children(&self) -> Vec<Scru128Id> {
-        let mut children = self.children.clone();
-        children.extend(&self.forked_children);
-        children
-    }
-}
-
 pub struct View {
     pub items: HashMap<Scru128Id, Item>,
 }
@@ -135,10 +127,25 @@ impl View {
     }
 
     pub fn root(&self) -> Vec<Item> {
-        self.items
+        let mut root_items = self
+            .items
             .values()
             .filter(|item| item.stack_id.is_none())
             .cloned()
-            .collect()
+            .collect::<Vec<_>>();
+        root_items.sort_by_key(|item| item.last_touched);
+        root_items
+    }
+
+    pub fn children(&self, item: &Item) -> Vec<Scru128Id> {
+        let mut children = item.children.clone();
+        children.extend(&item.forked_children);
+        children.sort_by_key(|child| {
+            self.items
+                .get(child)
+                .map(|item| item.last_touched)
+                .unwrap_or_default()
+        });
+        children
     }
 }

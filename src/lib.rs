@@ -10,12 +10,12 @@ mod tests {
     use crate::view::View;
 
     fn assert_view_as_expected(store: &Store, view: &View, expected: Vec<(&str, Vec<&str>)>) {
-        let mut actual: Vec<(String, Vec<String>)> = view
+        let actual: Vec<(String, Vec<String>)> = view
             .root()
             .iter()
             .filter_map(|item| {
-                let children = item
-                    .get_children()
+                let children = view
+                    .children(&item)
                     .iter()
                     .filter_map(|child_id| {
                         view.items
@@ -30,13 +30,7 @@ mod tests {
             })
             .collect();
 
-        // Sort the vectors before comparing
-        actual.sort_by(|a, b| a.0.cmp(&b.0));
-        for (_, v) in &mut actual {
-            v.sort();
-        }
-
-        let mut expected: Vec<(String, Vec<String>)> = expected
+        let expected: Vec<(String, Vec<String>)> = expected
             .into_iter()
             .map(|(s, children)| {
                 (
@@ -45,12 +39,6 @@ mod tests {
                 )
             })
             .collect();
-
-        // Sort the expected vectors before comparing
-        expected.sort_by(|a, b| a.0.cmp(&b.0));
-        for (_, v) in &mut expected {
-            v.sort();
-        }
 
         assert_eq!(actual, expected);
     }
@@ -183,7 +171,8 @@ mod tests {
         let mut view = View::new();
         store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(
-            &store, &view,
+            &store,
+            &view,
             vec![
                 ("Stack 1", vec!["Item 1", "Item 2"]),
                 ("Stack 2", vec!["Item 1", "Item 2"]),
@@ -209,7 +198,8 @@ mod tests {
         let mut view = View::new();
         store.scan().for_each(|p| view.merge(p));
         assert_view_as_expected(
-            &store, &view,
+            &store,
+            &view,
             vec![
                 ("Stack 1", vec!["Item 1", "Item 2"]),
                 ("Stack 2", vec!["Item 1", "Item 2"]),
